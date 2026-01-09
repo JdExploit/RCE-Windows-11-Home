@@ -1,6 +1,5 @@
-# 🎯 **README.md - Proyecto de Implante Windows 11 & C2 Server**
+# 🎯 **Proyecto de Implante Windows 11 & C2 Server**
 
-```markdown
 # 🚀 Windows 11 Home Implant & C2 Server
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
