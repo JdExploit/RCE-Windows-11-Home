@@ -219,7 +219,7 @@ class AdvancedComms:
         self.session_id = self._generate_anonymous_id()
         self.last_comms = {}
         # AÑADE ESTA VARIABLE
-        self.kali_ip = "192.168.1.100"  # ← TU IP DE KALI
+        self.kali_ip = "192.168.254.134"  # ← TU IP DE KALI
         self.domains = self._get_legitimate_domains()
     
     def _get_legitimate_domains(self):
