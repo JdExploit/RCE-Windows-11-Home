@@ -12,6 +12,7 @@ import logging
 import dns.resolver
 import dns.message
 import dns.rdatatype
+import os
 
 # Configuración
 CONFIG = {
