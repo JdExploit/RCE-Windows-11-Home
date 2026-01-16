@@ -17,7 +17,7 @@ import os
 # Configuración
 CONFIG = {
     'HOST': '0.0.0.0',
-    'PORT': 443,
+    'PORT': 8443,
     'DNS_PORT': 53,
     'DOH_ENDPOINT': '/dns-query',
     'ENCRYPTION_KEY': Fernet.generate_key(),
